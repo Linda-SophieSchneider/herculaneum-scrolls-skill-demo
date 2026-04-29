@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vesuvius-Demo: Versteckte Schrift finden</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Demo</p>
+        <h1>Versteckte Schrift im Papyrus finden</h1>
+      </div>
+      <div class="timebox" aria-label="Zeitplan">
+        <strong>4 Stationen</strong>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Demo-Stationen">
+      <button class="tab active" data-tab="scan">Scan erkunden</button>
+      <button class="tab" data-tab="label">Tinte labeln</button>
+      <button class="tab" data-tab="data">Daten vorbereiten</button>
+      <button class="tab" data-tab="model">KI-Vorhersage</button>
+    </nav>
+
+    <main>
+      <section id="scan" class="panel active">
+        <div class="station-head">
+          <div>
+            <p class="step">Station 1 · Rekonstruktion</p>
+            <h2>Schicht für Schicht durch den künstlichen Papyrus</h2>
+          </div>
+          <p class="station-note">Die Schrift ist Griechisch und liegt nur auf einer dünnen, gewellten Oberfläche.</p>
+        </div>
+
+        <div class="workspace two-col">
+          <div class="viewer-block">
+            <canvas id="scanCanvas" width="520" height="520" class="main-canvas" aria-label="Synthetische CT-Schicht"></canvas>
+            <div class="status-row">
+              <span id="scanStatus">Suche die Schicht mit sichtbarer Tinte.</span>
+              <strong id="scanScore">Treffer: 0%</strong>
+            </div>
+          </div>
+
+          <aside class="controls">
+            <div class="example-control">
+              <span>Beispiel</span>
+              <div class="segmented" id="scanExamples">
+                <button class="active" data-example="0">1</button>
+                <button data-example="1">2</button>
+                <button data-example="2">3</button>
+              </div>
+            </div>
+            <label>
+              Tiefe im Volumen
+              <input id="zSlider" type="range" min="0" max="65" value="28" />
+              <span id="zValue">28</span>
+            </label>
+            <label>
+              Dichtefenster
+              <input id="windowSlider" type="range" min="18" max="95" value="46" />
+              <span id="windowValue">46</span>
+            </label>
+            <label>
+              Rauschfilter
+              <input id="smoothSlider" type="range" min="0" max="4" value="1" />
+              <span id="smoothValue">1</span>
+            </label>
+            <button id="scanHint" class="secondary">Hinweis anzeigen</button>
+            <div class="mini-readout">
+              <span>Tipp</span>
+              <strong id="scanHintText">Achte auf Linien, die nur in wenigen Schichten auftauchen.</strong>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="label" class="panel">
+        <div class="station-head">
+          <div>
+            <p class="step">Station 2 · Labels</p>
+            <h2>Tinte über Tiefenveränderungen markieren</h2>
+          </div>
+          <p class="station-note">Die Tinte ist nicht einfach im Einzelbild sichtbar. Suche Spuren, die beim Slicen durch Nachbarschichten kurz auftauchen.</p>
+        </div>
+
+        <div class="workspace two-col">
+          <div class="viewer-block">
+            <canvas id="labelCanvas" width="520" height="520" class="main-canvas" aria-label="Ausschnitt zum Labeln"></canvas>
+            <div class="paint-actions">
+              <button id="brushBtn" class="tool active">Pinsel</button>
+              <button id="eraseBtn" class="tool">Radierer</button>
+              <label class="brush-control">
+                Pinseldicke
+                <input id="brushSizeSlider" type="range" min="1" max="8" value="3" />
+                <span id="brushSizeValue">3</span>
+              </label>
+              <button id="clearLabelBtn" class="secondary">Zurücksetzen</button>
+              <button id="showTruthBtn" class="primary">Mit Wahrheit vergleichen</button>
+            </div>
+            <div class="status-row">
+              <span id="labelStatus">Markiere die Linien, die du für Tinte hältst.</span>
+              <strong id="labelScore">IoU: -</strong>
+            </div>
+          </div>
+
+          <aside class="controls">
+            <label>
+              Tiefenschicht
+              <input id="labelZSlider" type="range" min="0" max="65" value="37" />
+              <span id="labelZValue">37</span>
+            </label>
+            <button id="labelDiffBtn" class="secondary">Nachbarschichten vergleichen</button>
+            <p id="labelDiffHelp" class="control-help">Zeigt normal die aktuelle Tiefenschicht. Der Vergleichsmodus hebt Änderungen zwischen der Schicht davor und danach hervor.</p>
+            <div class="choice-grid" id="patchChoices"></div>
+            <div class="mini-readout">
+              <span>aktiver Ausschnitt</span>
+              <strong id="activePatchName">A</strong>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="data" class="panel">
+        <div class="station-head">
+          <div>
+            <p class="step">Station 3 · Datenvorbereitung</p>
+            <h2>Aus dem Volumen wird ein Trainingsbeispiel</h2>
+          </div>
+          <p class="station-note">Auch Hintergrund-Patches gehören ins Training. Entscheidend sind Anteil, Überlappung und Stride, damit leere Bereiche nicht alles dominieren.</p>
+        </div>
+
+        <div class="workspace two-col">
+          <div class="viewer-block">
+            <canvas id="prepCanvas" width="520" height="520" class="main-canvas" aria-label="Volumenansicht mit Patch-Auswahl"></canvas>
+            <div class="status-row">
+              <span id="prepStatus">Ziehe das Quadrat oder tippe eine Stelle an.</span>
+              <strong id="prepScore">Qualität: mittel</strong>
+            </div>
+          </div>
+
+          <aside class="controls">
+            <div class="example-control">
+              <span>Beispiel</span>
+              <div class="segmented" id="prepExamples">
+                <button class="active" data-example="0">1</button>
+                <button data-example="1">2</button>
+                <button data-example="2">3</button>
+              </div>
+            </div>
+            <canvas id="patchPreview" width="220" height="220" class="preview-canvas" aria-label="Patch-Vorschau"></canvas>
+            <label>
+              Patch-Größe
+              <input id="patchSizeSlider" type="range" min="42" max="130" value="86" />
+              <span id="patchSizeValue">86 px</span>
+            </label>
+            <label>
+              Stride / Überlappung
+              <input id="strideSlider" type="range" min="16" max="120" value="44" />
+              <span id="strideValue">44 px</span>
+            </label>
+            <label>
+              Hintergrund-Anteil
+              <input id="backgroundSlider" type="range" min="5" max="80" value="35" />
+              <span id="backgroundValue">35%</span>
+            </label>
+            <button id="randomPatchBtn" class="secondary">Neuen Patch wählen</button>
+            <div class="metric-list">
+              <div><span>Tintenanteil</span><strong id="inkMetric">-</strong></div>
+              <div><span>Struktur</span><strong id="structureMetric">-</strong></div>
+              <div><span>Rauschen</span><strong id="noiseMetric">-</strong></div>
+              <div><span>Patches</span><strong id="patchCountMetric">-</strong></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="model" class="panel">
+        <div class="station-head">
+          <div>
+            <p class="step">Station 4 · Netzwerktraining</p>
+            <h2>Eine KI-Vorhersage entsteht Schritt für Schritt</h2>
+          </div>
+          <p class="station-note">Das Training ist simuliert. Verändere Datenmenge, Testanteil und Learning Rate und beobachte Vorhersage, Fehlalarme und Loss.</p>
+        </div>
+
+        <div class="example-strip" id="modelExamples" aria-label="Modellbeispiele">
+          <button class="active" data-example="0">Beispiel 1</button>
+          <button data-example="1">Beispiel 2</button>
+          <button data-example="2">Beispiel 3</button>
+        </div>
+
+        <div class="model-grid">
+          <div class="model-tile">
+            <h3>Scan</h3>
+            <canvas id="modelInput" width="300" height="300" class="tile-canvas"></canvas>
+          </div>
+          <div class="model-tile">
+            <h3>Deutung</h3>
+            <div class="guess-box">
+              <label>
+                Was könnte dort stehen?
+                <input id="guessInput" type="text" autocomplete="off" placeholder="griechisch oder Umschrift eintippen" />
+              </label>
+              <button id="guessBtn" class="secondary">Eingabe prüfen</button>
+              <p id="guessStatus">Keine Wahrheit anzeigen: erst aus Scan und Vorhersage eine Vermutung bilden.</p>
+            </div>
+          </div>
+          <div class="model-tile">
+            <h3>Vorhersage</h3>
+            <canvas id="modelPred" width="300" height="300" class="tile-canvas"></canvas>
+          </div>
+          <div class="model-tile">
+            <h3>Loss: Training / Test</h3>
+            <canvas id="lossCanvas" width="300" height="300" class="tile-canvas"></canvas>
+          </div>
+        </div>
+
+        <div class="model-metrics">
+          <div>
+            <span>Erkennung</span>
+            <strong id="detectMetric">-</strong>
+          </div>
+          <div>
+            <span>Fehlalarme</span>
+            <strong id="falseMetric">-</strong>
+          </div>
+          <div>
+            <span>Generalisierung</span>
+            <strong id="generalMetric">-</strong>
+          </div>
+          <div>
+            <span>Lernverhalten</span>
+            <strong id="learnMetric">-</strong>
+          </div>
+        </div>
+
+        <div class="bottom-controls">
+          <label>
+            Trainingsrunde
+            <input id="epochSlider" type="range" min="0" max="30" value="0" />
+            <span id="epochValue">0</span>
+          </label>
+          <label>
+            Trainingsdaten
+            <input id="trainDataSlider" type="range" min="10" max="100" value="45" />
+            <span id="trainDataValue">45%</span>
+          </label>
+          <label>
+            Testdaten
+            <input id="testDataSlider" type="range" min="5" max="50" value="20" />
+            <span id="testDataValue">20%</span>
+          </label>
+          <label>
+            Learning Rate
+            <input id="lrSlider" type="range" min="1" max="100" value="35" />
+            <span id="lrValue">0.0035</span>
+          </label>
+          <button id="trainBtn" class="primary">Training starten</button>
+        </div>
+        <p class="control-help">Trainingsrunde = Fortschritt. Trainingsdaten = gelabelte Patches. Testdaten = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.</p>
+      </section>
+    </main>
+
+    <footer>
+      <strong>Transparenz:</strong> Alle Bilder entstehen im Browser aus Dummy-Daten. Sie sind inspiriert vom Problem der Vesuvius Challenge, aber keine echten Scans.
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
