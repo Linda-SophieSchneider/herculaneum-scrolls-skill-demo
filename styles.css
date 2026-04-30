@@ -44,6 +44,40 @@ input {
   border-bottom: 1px solid var(--line);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.mode-switch {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  opacity: 0.72;
+}
+
+.mode-switch > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.mode-switch .segmented {
+  grid-template-columns: repeat(2, auto);
+  gap: 4px;
+}
+
+.mode-switch .segmented button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
 .eyebrow,
 .step {
   margin: 0 0 5px;
@@ -147,6 +181,37 @@ main {
   margin-bottom: 0;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.learning-card {
+  display: grid;
+  gap: 6px;
+  margin: -4px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbf4e6;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.learning-card:empty {
+  display: none;
+}
+
+.learning-card strong {
+  color: var(--teal-dark);
+}
+
+.learning-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 19px;
+}
+
+.learning-card p {
+  margin: 0;
 }
 
 .workspace {
@@ -482,6 +547,14 @@ label span {
   line-height: 1.4;
 }
 
+.advanced-only {
+  display: none;
+}
+
+body[data-mode="upper"] .advanced-only {
+  display: grid;
+}
+
 footer {
   padding: 14px clamp(16px, 4vw, 44px) 24px;
   color: var(--muted);
@@ -491,6 +564,11 @@ footer {
 @media (max-width: 900px) {
   .topbar,
   .station-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
     align-items: stretch;
     flex-direction: column;
   }

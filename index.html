@@ -12,8 +12,17 @@
         <p class="eyebrow">Demo</p>
         <h1>Versteckte Schrift im Papyrus finden</h1>
       </div>
-      <div class="timebox" aria-label="Zeitplan">
-        <strong>4 Stationen</strong>
+      <div class="header-actions">
+        <div class="mode-switch" aria-label="Schwierigkeitsmodus">
+          <span>Modus</span>
+          <div class="segmented" id="modeSwitch">
+            <button class="active" data-mode="youth">Jugend</button>
+            <button data-mode="upper">Oberstufe</button>
+          </div>
+        </div>
+        <div class="timebox" aria-label="Zeitplan">
+          <strong>4 Stationen</strong>
+        </div>
       </div>
     </header>
 
@@ -29,10 +38,11 @@
         <div class="station-head">
           <div>
             <p class="step">Station 1 · Rekonstruktion</p>
-            <h2>Schicht für Schicht durch den künstlichen Papyrus</h2>
+            <h2 id="scanTitle">Schicht für Schicht durch den künstlichen Papyrus</h2>
           </div>
-          <p class="station-note">Die Schrift ist Griechisch und liegt nur auf einer dünnen, gewellten Oberfläche.</p>
+          <p id="scanNote" class="station-note">Die Schrift ist Griechisch und liegt nur auf einer dünnen, gewellten Oberfläche.</p>
         </div>
+        <div id="scanLearning" class="learning-card"></div>
 
         <div class="workspace two-col">
           <div class="viewer-block">
@@ -62,6 +72,16 @@
               <input id="windowSlider" type="range" min="18" max="95" value="46" />
               <span id="windowValue">46</span>
             </label>
+            <label class="advanced-only">
+              Fensterzentrum
+              <input id="windowCenterSlider" type="range" min="42" max="68" value="55" />
+              <span id="windowCenterValue">0.55</span>
+            </label>
+            <label class="advanced-only">
+              Rauschamplitude
+              <input id="noiseAmpSlider" type="range" min="40" max="160" value="100" />
+              <span id="noiseAmpValue">1.00</span>
+            </label>
             <label>
               Rauschfilter
               <input id="smoothSlider" type="range" min="0" max="4" value="1" />
@@ -80,10 +100,11 @@
         <div class="station-head">
           <div>
             <p class="step">Station 2 · Labels</p>
-            <h2>Tinte über Tiefenveränderungen markieren</h2>
+            <h2 id="labelTitle">Tinte über Tiefenveränderungen markieren</h2>
           </div>
-          <p class="station-note">Die Tinte ist nicht einfach im Einzelbild sichtbar. Suche Spuren, die beim Slicen durch Nachbarschichten kurz auftauchen.</p>
+          <p id="labelNote" class="station-note">Die Tinte ist nicht einfach im Einzelbild sichtbar. Suche Spuren, die beim Slicen durch Nachbarschichten kurz auftauchen.</p>
         </div>
+        <div id="labelLearning" class="learning-card"></div>
 
         <div class="workspace two-col">
           <div class="viewer-block">
@@ -93,8 +114,8 @@
               <button id="eraseBtn" class="tool">Radierer</button>
               <label class="brush-control">
                 Pinseldicke
-                <input id="brushSizeSlider" type="range" min="1" max="8" value="3" />
-                <span id="brushSizeValue">3</span>
+                <input id="brushSizeSlider" type="range" min="1" max="8" value="4" />
+                <span id="brushSizeValue">4</span>
               </label>
               <button id="clearLabelBtn" class="secondary">Zurücksetzen</button>
               <button id="showTruthBtn" class="primary">Mit Wahrheit vergleichen</button>
@@ -111,8 +132,19 @@
               <input id="labelZSlider" type="range" min="0" max="65" value="37" />
               <span id="labelZValue">37</span>
             </label>
-            <button id="labelDiffBtn" class="secondary">Nachbarschichten vergleichen</button>
-            <p id="labelDiffHelp" class="control-help">Zeigt normal die aktuelle Tiefenschicht. Der Vergleichsmodus hebt Änderungen zwischen der Schicht davor und danach hervor.</p>
+            <div class="example-control">
+              <span>Ansicht</span>
+              <div class="segmented" id="labelViewMode">
+                <button class="active" data-mode="slice">Schicht</button>
+                <button data-mode="diff">Änderung</button>
+              </div>
+            </div>
+            <label class="advanced-only">
+              Δz für Änderung
+              <input id="diffDeltaSlider" type="range" min="1" max="5" value="1" />
+              <span id="diffDeltaValue">1</span>
+            </label>
+            <p id="labelDiffHelp" class="control-help">Schicht zeigt den aktuellen Schnitt. Änderung zeigt, was sich zwischen z-1 und z+1 verändert.</p>
             <div class="choice-grid" id="patchChoices"></div>
             <div class="mini-readout">
               <span>aktiver Ausschnitt</span>
@@ -126,17 +158,18 @@
         <div class="station-head">
           <div>
             <p class="step">Station 3 · Datenvorbereitung</p>
-            <h2>Aus dem Volumen wird ein Trainingsbeispiel</h2>
+            <h2 id="dataTitle">Aus dem Volumen wird ein Trainingsbeispiel</h2>
           </div>
-          <p class="station-note">Auch Hintergrund-Patches gehören ins Training. Entscheidend sind Anteil, Überlappung und Stride, damit leere Bereiche nicht alles dominieren.</p>
+          <p id="dataNote" class="station-note">Auch Hintergrund-Patches gehören ins Training. Entscheidend sind Anteil, Überlappung und Stride, damit leere Bereiche nicht alles dominieren.</p>
         </div>
+        <div id="dataLearning" class="learning-card"></div>
 
         <div class="workspace two-col">
           <div class="viewer-block">
             <canvas id="prepCanvas" width="520" height="520" class="main-canvas" aria-label="Volumenansicht mit Patch-Auswahl"></canvas>
             <div class="status-row">
-              <span id="prepStatus">Ziehe das Quadrat oder tippe eine Stelle an.</span>
-              <strong id="prepScore">Qualität: mittel</strong>
+              <span id="prepStatus">Wähle Patch-Größe, Stride und Hintergrundanteil, dann prüfe die Entscheidung.</span>
+              <strong id="prepScore">Noch nicht geprüft</strong>
             </div>
           </div>
 
@@ -152,24 +185,34 @@
             <canvas id="patchPreview" width="220" height="220" class="preview-canvas" aria-label="Patch-Vorschau"></canvas>
             <label>
               Patch-Größe
-              <input id="patchSizeSlider" type="range" min="42" max="130" value="86" />
-              <span id="patchSizeValue">86 px</span>
+              <input id="patchSizeSlider" type="range" min="24" max="160" value="86" />
+              <span id="patchSizeValue">86 Voxel</span>
             </label>
             <label>
               Stride / Überlappung
-              <input id="strideSlider" type="range" min="16" max="120" value="44" />
-              <span id="strideValue">44 px</span>
+              <input id="strideSlider" type="range" min="8" max="140" value="44" />
+              <span id="strideValue">44 Voxel</span>
             </label>
             <label>
               Hintergrund-Anteil
               <input id="backgroundSlider" type="range" min="5" max="80" value="35" />
               <span id="backgroundValue">35%</span>
             </label>
-            <button id="randomPatchBtn" class="secondary">Neuen Patch wählen</button>
+            <label class="advanced-only">
+              Augmentation
+              <input id="augmentationSlider" type="range" min="0" max="100" value="35" />
+              <span id="augmentationValue">35%</span>
+            </label>
+            <label class="advanced-only">
+              Klassengewichtung
+              <input id="classWeightSlider" type="range" min="1" max="5" value="2" />
+              <span id="classWeightValue">2x</span>
+            </label>
+            <button id="evaluatePrepBtn" class="primary">Entscheidung prüfen</button>
             <div class="metric-list">
-              <div><span>Tintenanteil</span><strong id="inkMetric">-</strong></div>
-              <div><span>Struktur</span><strong id="structureMetric">-</strong></div>
-              <div><span>Rauschen</span><strong id="noiseMetric">-</strong></div>
+              <div><span>Schriftgröße</span><strong id="inkMetric">-</strong></div>
+              <div><span>Überlappung</span><strong id="structureMetric">-</strong></div>
+              <div><span>Hintergrund</span><strong id="noiseMetric">-</strong></div>
               <div><span>Patches</span><strong id="patchCountMetric">-</strong></div>
             </div>
           </aside>
@@ -180,10 +223,11 @@
         <div class="station-head">
           <div>
             <p class="step">Station 4 · Netzwerktraining</p>
-            <h2>Eine KI-Vorhersage entsteht Schritt für Schritt</h2>
+            <h2 id="modelTitle">Eine KI-Vorhersage entsteht Schritt für Schritt</h2>
           </div>
-          <p class="station-note">Das Training ist simuliert. Verändere Datenmenge, Testanteil und Learning Rate und beobachte Vorhersage, Fehlalarme und Loss.</p>
+          <p id="modelNote" class="station-note">Das Training ist simuliert. Verändere Datenmenge, Testanteil und Learning Rate und beobachte Vorhersage, Fehlalarme und Loss.</p>
         </div>
+        <div id="modelLearning" class="learning-card"></div>
 
         <div class="example-strip" id="modelExamples" aria-label="Modellbeispiele">
           <button class="active" data-example="0">Beispiel 1</button>
@@ -248,6 +292,11 @@
             <span id="trainDataValue">45%</span>
           </label>
           <label>
+            Modellgröße
+            <input id="modelSizeSlider" type="range" min="1" max="3" value="2" />
+            <span id="modelSizeValue">mittel</span>
+          </label>
+          <label>
             Testdaten
             <input id="testDataSlider" type="range" min="5" max="50" value="20" />
             <span id="testDataValue">20%</span>
@@ -257,9 +306,19 @@
             <input id="lrSlider" type="range" min="1" max="100" value="35" />
             <span id="lrValue">0.0035</span>
           </label>
+          <label class="advanced-only">
+            Regularisierung
+            <input id="regularizationSlider" type="range" min="0" max="100" value="35" />
+            <span id="regularizationValue">0.35</span>
+          </label>
+          <label class="advanced-only">
+            Schwelle
+            <input id="thresholdSlider" type="range" min="10" max="90" value="50" />
+            <span id="thresholdValue">0.50</span>
+          </label>
           <button id="trainBtn" class="primary">Training starten</button>
         </div>
-        <p class="control-help">Trainingsrunde = Fortschritt. Trainingsdaten = gelabelte Patches. Testdaten = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.</p>
+        <p id="modelControlHelp" class="control-help">Trainingsrunde = Fortschritt. Trainingsdaten = gelabelte Patches. Modellgröße = Lernkapazität. Testdaten = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.</p>
       </section>
     </main>
 
