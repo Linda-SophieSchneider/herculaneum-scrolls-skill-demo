@@ -17,7 +17,7 @@
           <span>Modus</span>
           <div class="segmented" id="modeSwitch">
             <button class="active" data-mode="youth">Jugend</button>
-            <button data-mode="upper">Oberstufe</button>
+            <button data-mode="upper">Vertieft</button>
           </div>
         </div>
         <div class="timebox" aria-label="Zeitplan">
@@ -63,27 +63,27 @@
               </div>
             </div>
             <label>
-              Tiefe im Volumen
+              <span class="info-term" data-info="volumeDepth" role="button" tabindex="0">Tiefe im Volumen</span>
               <input id="zSlider" type="range" min="0" max="65" value="28" />
               <span id="zValue">28</span>
             </label>
             <label>
-              Dichtefenster
+              <span class="info-term" data-info="densityWindow" role="button" tabindex="0">Dichtefenster</span>
               <input id="windowSlider" type="range" min="18" max="95" value="46" />
               <span id="windowValue">46</span>
             </label>
             <label class="advanced-only">
-              Fensterzentrum
+              <span class="info-term" data-info="windowCenter" role="button" tabindex="0">Dichte-Mitte</span>
               <input id="windowCenterSlider" type="range" min="42" max="68" value="55" />
               <span id="windowCenterValue">0.55</span>
             </label>
             <label class="advanced-only">
-              Rauschamplitude
+              <span class="info-term" data-info="noiseAmplitude" role="button" tabindex="0">Rauschamplitude</span>
               <input id="noiseAmpSlider" type="range" min="40" max="160" value="100" />
               <span id="noiseAmpValue">1.00</span>
             </label>
             <label>
-              Rauschfilter
+              <span class="info-term" data-info="noiseFilter" role="button" tabindex="0">Rauschfilter</span>
               <input id="smoothSlider" type="range" min="0" max="4" value="1" />
               <span id="smoothValue">1</span>
             </label>
@@ -113,7 +113,7 @@
               <button id="brushBtn" class="tool active">Pinsel</button>
               <button id="eraseBtn" class="tool">Radierer</button>
               <label class="brush-control">
-                Pinseldicke
+                <span class="info-term" data-info="brushSize" role="button" tabindex="0">Pinseldicke</span>
                 <input id="brushSizeSlider" type="range" min="1" max="8" value="4" />
                 <span id="brushSizeValue">4</span>
               </label>
@@ -128,7 +128,7 @@
 
           <aside class="controls">
             <label>
-              Tiefenschicht
+              <span class="info-term" data-info="sliceDepth" role="button" tabindex="0">Tiefenschicht</span>
               <input id="labelZSlider" type="range" min="0" max="65" value="37" />
               <span id="labelZValue">37</span>
             </label>
@@ -140,7 +140,7 @@
               </div>
             </div>
             <label class="advanced-only">
-              Δz für Änderung
+              <span class="info-term" data-info="deltaZ" role="button" tabindex="0">Differenzbild-Abstand</span>
               <input id="diffDeltaSlider" type="range" min="1" max="5" value="1" />
               <span id="diffDeltaValue">1</span>
             </label>
@@ -171,6 +171,24 @@
               <span id="prepStatus">Wähle Patch-Größe, Stride und Hintergrundanteil, dann prüfe die Entscheidung.</span>
               <strong id="prepScore">Noch nicht geprüft</strong>
             </div>
+            <div id="patchReview" class="patch-review" hidden>
+              <div class="patch-review-head">
+                <strong>Gespeicherte Trainingspatches</strong>
+                <span id="patchReviewNote">Wähle einen Patch für die Bewertung.</span>
+              </div>
+              <div class="patch-inspector">
+                <canvas id="selectedPatchCanvas" width="180" height="120" aria-label="Ausgewählter Trainingspatch"></canvas>
+                <div class="patch-inspector-info">
+                  <strong id="selectedPatchTitle">Patch 1</strong>
+                  <span id="selectedPatchMetrics">-</span>
+                  <div class="patch-nav">
+                    <button id="prevPatchBtn" class="secondary" type="button">Zurück</button>
+                    <button id="nextPatchBtn" class="secondary" type="button">Weiter</button>
+                  </div>
+                </div>
+              </div>
+              <div id="patchGallery" class="patch-gallery"></div>
+            </div>
           </div>
 
           <aside class="controls">
@@ -184,31 +202,36 @@
             </div>
             <canvas id="patchPreview" width="220" height="220" class="preview-canvas" aria-label="Patch-Vorschau"></canvas>
             <label>
-              Patch-Größe
+              <span class="info-term" data-info="patchSize" role="button" tabindex="0">Patch-Größe</span>
               <input id="patchSizeSlider" type="range" min="24" max="160" value="86" />
               <span id="patchSizeValue">86 Voxel</span>
             </label>
             <label>
-              Stride / Überlappung
+              <span class="info-term" data-info="stride" role="button" tabindex="0">Stride / Überlappung</span>
               <input id="strideSlider" type="range" min="8" max="140" value="44" />
               <span id="strideValue">44 Voxel</span>
             </label>
             <label>
-              Hintergrund-Anteil
+              <span class="info-term" data-info="backgroundShare" role="button" tabindex="0">Hintergrund-Anteil</span>
               <input id="backgroundSlider" type="range" min="5" max="80" value="35" />
               <span id="backgroundValue">35%</span>
             </label>
             <label class="advanced-only">
-              Augmentation
+              <span class="info-term" data-info="augmentation" role="button" tabindex="0">Augmentation</span>
               <input id="augmentationSlider" type="range" min="0" max="100" value="35" />
               <span id="augmentationValue">35%</span>
             </label>
             <label class="advanced-only">
-              Klassengewichtung
+              <span class="info-term" data-info="classWeight" role="button" tabindex="0">Klassengewichtung</span>
               <input id="classWeightSlider" type="range" min="1" max="5" value="2" />
               <span id="classWeightValue">2x</span>
             </label>
-            <button id="evaluatePrepBtn" class="primary">Entscheidung prüfen</button>
+            <label class="count-check advanced-only">
+              Patchzahl berechnen
+              <input id="patchCountGuess" type="number" min="1" inputmode="numeric" placeholder="deine Zahl" />
+              <span id="patchCountFeedback">-</span>
+            </label>
+            <button id="evaluatePrepBtn" class="primary">Fertig: Patches erzeugen</button>
             <div class="metric-list">
               <div><span>Schriftgröße</span><strong id="inkMetric">-</strong></div>
               <div><span>Überlappung</span><strong id="structureMetric">-</strong></div>
@@ -237,7 +260,7 @@
 
         <div class="model-grid">
           <div class="model-tile">
-            <h3>Scan</h3>
+            <h3>Testbild</h3>
             <canvas id="modelInput" width="300" height="300" class="tile-canvas"></canvas>
           </div>
           <div class="model-tile">
@@ -263,68 +286,84 @@
 
         <div class="model-metrics">
           <div>
-            <span>Erkennung</span>
+            <span class="info-term" data-info="detection" role="button" tabindex="0">Erkennung</span>
             <strong id="detectMetric">-</strong>
           </div>
           <div>
-            <span>Fehlalarme</span>
+            <span class="info-term" data-info="falseAlarms" role="button" tabindex="0">Fehlalarme</span>
             <strong id="falseMetric">-</strong>
           </div>
           <div>
-            <span>Generalisierung</span>
+            <span class="info-term" data-info="generalization" role="button" tabindex="0">Generalisierung</span>
             <strong id="generalMetric">-</strong>
           </div>
           <div>
-            <span>Lernverhalten</span>
+            <span class="info-term" data-info="learningBehavior" role="button" tabindex="0">Lernverhalten</span>
             <strong id="learnMetric">-</strong>
           </div>
         </div>
 
         <div class="bottom-controls">
           <label>
-            Trainingsrunde
+            <span class="info-term" data-info="epoch" role="button" tabindex="0">Trainingsrunde</span>
             <input id="epochSlider" type="range" min="0" max="30" value="0" />
             <span id="epochValue">0</span>
           </label>
           <label>
-            Trainingsdaten
+            <span class="info-term" data-info="trainData" role="button" tabindex="0">Trainingsdaten</span>
             <input id="trainDataSlider" type="range" min="10" max="100" value="45" />
             <span id="trainDataValue">45%</span>
           </label>
           <label>
-            Modellgröße
+            <span class="info-term" data-info="modelSize" role="button" tabindex="0">Modellgröße</span>
             <input id="modelSizeSlider" type="range" min="1" max="3" value="2" />
             <span id="modelSizeValue">mittel</span>
           </label>
           <label>
-            Testdaten
+            <span class="info-term" data-info="testData" role="button" tabindex="0">Testdaten</span>
             <input id="testDataSlider" type="range" min="5" max="50" value="20" />
             <span id="testDataValue">20%</span>
           </label>
           <label>
-            Learning Rate
+            <span class="info-term" data-info="learningRate" role="button" tabindex="0">Learning Rate</span>
             <input id="lrSlider" type="range" min="1" max="100" value="35" />
             <span id="lrValue">0.0035</span>
           </label>
           <label class="advanced-only">
-            Regularisierung
+            <span class="info-term" data-info="regularization" role="button" tabindex="0">Regularisierung</span>
             <input id="regularizationSlider" type="range" min="0" max="100" value="35" />
             <span id="regularizationValue">0.35</span>
           </label>
           <label class="advanced-only">
-            Schwelle
+            <span class="info-term" data-info="threshold" role="button" tabindex="0">Schwelle</span>
             <input id="thresholdSlider" type="range" min="10" max="90" value="50" />
             <span id="thresholdValue">0.50</span>
           </label>
           <button id="trainBtn" class="primary">Training starten</button>
         </div>
-        <p id="modelControlHelp" class="control-help">Trainingsrunde = Fortschritt. Trainingsdaten = gelabelte Patches. Modellgröße = Lernkapazität. Testdaten = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.</p>
+        <p id="modelControlHelp" class="control-help">Trainingsrunde = Fortschritt. Trainingsdaten = erzeugte gelabelte Patches. Modellgröße = Lernkapazität. Testbild = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.</p>
       </section>
     </main>
 
     <footer>
-      <strong>Transparenz:</strong> Alle Bilder entstehen im Browser aus Dummy-Daten. Sie sind inspiriert vom Problem der Vesuvius Challenge, aber keine echten Scans.
+      <strong>Transparenz:</strong> Die meisten Bilder entstehen im Browser aus Dummy-Daten. Station 1, Beispiel 3 nutzt einen stark verkleinerten echten Ausschnitt aus offiziellen Vesuvius-Challenge-Daten.
     </footer>
+
+    <div id="infoDialog" class="info-dialog" hidden>
+      <div class="info-card" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+        <button id="infoClose" class="info-close" type="button" aria-label="Infofenster schließen">×</button>
+        <p class="eyebrow">Begriff</p>
+        <h3 id="infoTitle"></h3>
+        <div>
+          <h4>Allgemein</h4>
+          <p id="infoGeneral"></p>
+        </div>
+        <div>
+          <h4>In dieser Demo</h4>
+          <p id="infoSpecific"></p>
+        </div>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>

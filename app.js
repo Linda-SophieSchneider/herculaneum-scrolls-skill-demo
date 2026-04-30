@@ -14,8 +14,9 @@ const state = {
   showTruth: false,
   labelDiff: false,
   hintIndex: 0,
-  prep: { x: 210, y: 215, size: 86, checked: false },
+  prep: { x: 210, y: 215, size: 86, checked: false, extracting: false, extractionIndex: -1, extractedPatches: [], activeExtracted: -1 },
   trainTimer: null,
+  prepTimer: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -79,6 +80,16 @@ const els = {
   classWeightSlider: $("classWeightSlider"),
   classWeightValue: $("classWeightValue"),
   evaluatePrepBtn: $("evaluatePrepBtn"),
+  patchCountGuess: $("patchCountGuess"),
+  patchCountFeedback: $("patchCountFeedback"),
+  patchReview: $("patchReview"),
+  patchGallery: $("patchGallery"),
+  patchReviewNote: $("patchReviewNote"),
+  selectedPatchCanvas: $("selectedPatchCanvas"),
+  selectedPatchTitle: $("selectedPatchTitle"),
+  selectedPatchMetrics: $("selectedPatchMetrics"),
+  prevPatchBtn: $("prevPatchBtn"),
+  nextPatchBtn: $("nextPatchBtn"),
   prepExamples: $("prepExamples"),
   prepStatus: $("prepStatus"),
   prepScore: $("prepScore"),
@@ -116,6 +127,11 @@ const els = {
   thresholdValue: $("thresholdValue"),
   trainBtn: $("trainBtn"),
   modelControlHelp: $("modelControlHelp"),
+  infoDialog: $("infoDialog"),
+  infoClose: $("infoClose"),
+  infoTitle: $("infoTitle"),
+  infoGeneral: $("infoGeneral"),
+  infoSpecific: $("infoSpecific"),
 };
 
 const smoothQuality = [0.72, 0.94, 1, 0.82, 0.56];
@@ -125,6 +141,21 @@ const examples = [
   { title: "Beispiel 2", sizeLabel: "groß", words: ["ΛΟΓΟΣ", "ΠΥΡΟΣ"], aliases: ["LOGOS", "PYROS"], targetZ: 29, rotation: 0.13, x: 0.49, y: 0.52, seed: 9, noise: 1.15, scriptScale: 1.28 },
   { title: "Beispiel 3", sizeLabel: "sehr klein", words: ["ΝΙΚΗ", "ΦΩΣ"], aliases: ["NIKE", "FOS"], targetZ: 45, rotation: -0.06, x: 0.55, y: 0.47, seed: 17, noise: 0.9, scriptScale: 0.48 },
 ];
+
+const realScrollSample = {
+  scanExample: 2,
+  depth: 40,
+  tileSize: 156,
+  cols: 8,
+  src: "assets/vesuvius_sample/real_scroll_atlas.png",
+  source: "Vesuvius Challenge, Scroll 1, Segment 20230516112444",
+};
+
+const realScrollImage = new Image();
+realScrollImage.src = realScrollSample.src;
+realScrollImage.addEventListener("load", () => {
+  if (state.scanExample === realScrollSample.scanExample) renderScan();
+});
 
 const copy = {
   youth: {
@@ -141,23 +172,159 @@ const copy = {
     modelNote: "Das Training ist simuliert. Verändere Datenmenge, Testanteil und Learning Rate und beobachte Vorhersage, Fehlalarme und Loss.",
     modelLearning: "",
     labelDiffHelp: "Schicht zeigt den aktuellen Schnitt. Änderung zeigt, was sich zwischen z-1 und z+1 verändert.",
-    modelControlHelp: "Trainingsrunde = Fortschritt. Trainingsdaten = gelabelte Patches. Modellgröße = Lernkapazität. Testdaten = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.",
+    modelControlHelp: "Trainingsrunde = Fortschritt. Trainingsdaten = erzeugte gelabelte Patches. Modellgröße = Lernkapazität. Testbild = zurückgehaltene Kontrolle. Learning Rate = Schrittweite beim Lernen.",
   },
   upper: {
     scanTitle: "CT-Volumen als Messfeld untersuchen",
     scanNote: "Der künstliche Scan ist ein 3D-Skalarfeld I(x,y,z). Tiefe, Dichtefenster und Filter bestimmen, welche Strukturen sichtbar werden.",
-    scanLearning: "<p><strong>Lernziel Oberstufe:</strong> Ihr interpretiert einen CT-Scan als Funktion mit Rauschen und schwachem Signal.</p><ul><li>z-Slider: Schnitt durch ein 3D-Volumen</li><li>Dichtefenster und Fensterzentrum: lineare Abbildung eines Messbereichs auf Grauwerte</li><li>Rauschamplitude und Filter: Kompromiss zwischen Signalglättung und Detailverlust</li></ul>",
+    scanLearning: "<p><strong>Lernziel:</strong> Ihr interpretiert einen CT-Scan als Funktion mit Rauschen und schwachem Signal.</p><ul><li>z-Slider: Schnitt durch ein 3D-Volumen</li><li>Dichtefenster und Dichte-Mitte: lineare Abbildung eines Messbereichs auf Grauwerte</li><li>Rauschamplitude und Filter: Kompromiss zwischen Signalglättung und Detailverlust</li></ul>",
     labelTitle: "Annotation als Maske und Messproblem",
     labelNote: "Tinte ist kein klarer Farbkanal. Labels entstehen aus Hypothesen über lokale Änderungen im Volumen und bleiben unsicher.",
-    labelLearning: "<p><strong>Lernziel Oberstufe:</strong> Ein Label ist eine binäre Maske, keine absolute Wahrheit.</p><ul><li>Die Änderungsansicht entspricht anschaulich einer endlichen Differenz entlang der z-Achse.</li><li>Die IoU misst Überlappung: Schnittmenge geteilt durch Vereinigungsmenge.</li><li>Gute Labels markieren nur das Signal, nicht die Papyrusstruktur.</li></ul>",
+    labelLearning: "<p><strong>Lernziel:</strong> Ein Label ist eine binäre Maske, keine absolute Wahrheit.</p><ul><li>Das Differenzbild vergleicht zwei benachbarte Tiefenschichten.</li><li>Die IoU misst Überlappung: Schnittmenge geteilt durch Vereinigungsmenge.</li><li>Gute Labels markieren nur das Signal, nicht die Papyrusstruktur.</li></ul>",
     dataTitle: "Sampling-Strategie für Trainingsdaten wählen",
     dataNote: "Patch-Größe, Stride und Hintergrundanteil bestimmen, welche Statistik das Modell später sieht.",
-    dataLearning: "<p><strong>Lernziel Oberstufe:</strong> Datenvorbereitung ist eine Modellannahme.</p><ul><li>Kleine Patches sehen Details, große Patches sehen Kontext.</li><li>Stride steuert die Überlappung und damit die Zahl stark ähnlicher Beispiele.</li><li>Hintergrundanteil, Augmentation und Klassengewichtung verändern die Trainingsverteilung.</li></ul>",
+    dataLearning: "<p><strong>Lernziel:</strong> Datenvorbereitung ist eine Modellannahme.</p><ul><li>Kleine Patches sehen Details, große Patches sehen Kontext.</li><li>Stride steuert die Überlappung und damit die Zahl stark ähnlicher Beispiele.</li><li>Hintergrundanteil, Augmentation und Klassengewichtung verändern die Trainingsverteilung.</li></ul>",
     modelTitle: "Modellparameter und Generalisierung untersuchen",
     modelNote: "Die Simulation zeigt typische Trainingsphänomene: Unterfitting, Overfitting, Fehlalarme und den Einfluss der Lernrate.",
-    modelLearning: "<p><strong>Lernziel Oberstufe:</strong> Ein neuronales Netz optimiert eine Verlustfunktion, liefert aber nur Wahrscheinlichkeiten.</p><ul><li>Trainingsdaten verbessern Anpassung an bekannte Beispiele.</li><li>Testdaten prüfen Generalisierung auf zurückgehaltene Beispiele.</li><li>Modellgröße, Regularisierung, Schwelle und Learning Rate steuern Stabilität, Overfitting und Fehlalarme.</li></ul>",
-    labelDiffHelp: "Schicht zeigt I(x,y,z). Änderung zeigt näherungsweise |I(x,y,z+1)-I(x,y,z-1)| und hebt lokale Tiefenänderungen hervor.",
-    modelControlHelp: "Trainingsrunde = Optimierungsschritt. Trainingsdaten = gelabelte Stichprobe. Modellgröße = Kapazität. Testdaten = Kontrollmenge für Generalisierung. Learning Rate = Schrittweite im Gradientenverfahren.",
+    modelLearning: "<p><strong>Lernziel:</strong> Ein neuronales Netz optimiert eine Verlustfunktion, liefert aber nur Wahrscheinlichkeiten.</p><ul><li>Trainingsdaten verbessern Anpassung an bekannte Beispiele.</li><li>Testdaten prüfen Generalisierung auf zurückgehaltene Beispiele.</li><li>Modellgröße, Regularisierung, Schwelle und Learning Rate steuern Stabilität, Overfitting und Fehlalarme.</li></ul>",
+    labelDiffHelp: "Differenzbild: angezeigt wird der Unterschied zwischen einer Schicht davor und einer Schicht danach. Helle Stellen bedeuten Änderung entlang der z-Achse, nicht automatisch Tinte.",
+    modelControlHelp: "Trainingsrunde = Optimierungsschritt. Trainingsdaten = gelabelte Patch-Stichprobe. Modellgröße = Kapazität. Testbild/Testdaten = Kontrollmenge für Generalisierung. Learning Rate = Schrittweite im Gradientenverfahren.",
+  },
+};
+
+const infoTerms = {
+  volumeDepth: {
+    title: "Tiefe im Volumen",
+    general: "Ein Volumen hat neben x- und y-Koordinate auch eine z-Koordinate. Ein einzelner z-Wert zeigt nur eine Schicht des dreidimensionalen Messfelds.",
+    specific: "Mit der z-Koordinate sieht man, dass Schriftspuren in unterschiedlichen Tiefenschichten unterschiedlich gut erhalten sind. Suche deshalb keine einzelne perfekte Ebene, sondern eine kurze Schichtfolge mit zusammenhängenden Linien.",
+  },
+  densityWindow: {
+    title: "Dichtefenster",
+    general: "Ein Dichtefenster legt fest, welcher Wertebereich eines Scans auf hell und dunkel abgebildet wird. Ein enges Fenster erhöht Kontrast, kann aber Werte abschneiden.",
+    specific: () => `In dieser Station entscheidet das Dichtefenster mit darüber, ob die schwache Tinte vom Papyrus getrennt wird. Aktuell ist die Breite ${els.windowSlider.value}.`,
+  },
+  windowCenter: {
+    title: "Dichte-Mitte",
+    general: "Die Dichte-Mitte legt fest, um welchen Messwert herum das Dichtefenster liegt. Sie verschiebt also, welcher Dichtebereich im Bild besonders kontrastreich dargestellt wird.",
+    specific: "In dieser Demo verschiebt die Dichte-Mitte den sichtbaren Schwerpunkt zwischen Papyrus, Rauschen und möglicher Tinte. Wenn sie ungünstig liegt, wird der Kontrast schlechter, obwohl die richtige Tiefe gewählt sein kann.",
+  },
+  noiseAmplitude: {
+    title: "Rauschamplitude",
+    general: "Rauschamplitude beschreibt, wie stark zufällige Messschwankungen gegenüber dem eigentlichen Signal sind. Je größer sie ist, desto schlechter wird das Signal-Rausch-Verhältnis.",
+    specific: () => `In der Demo erschwert hohe Rauschamplitude das Erkennen der griechischen Linien. Bei niedrigerer Amplitude wirkt der Scan sauberer, aber auch weniger realistisch.`,
+  },
+  noiseFilter: {
+    title: "Rauschfilter",
+    general: "Ein Filter mittelt benachbarte Bildwerte, um zufällige Schwankungen zu reduzieren. Dabei gehen immer auch feine Details verloren.",
+    specific: () => `Hier hilft ein kleiner Filter gegen körniges Rauschen. Zu starke Glättung verschmiert die dünnen Schriftspuren, besonders bei Beispiel 3 mit sehr kleiner Schrift.`,
+  },
+  sliceDepth: {
+    title: "Tiefenschicht",
+    general: "Eine Tiefenschicht ist ein zweidimensionaler Schnitt durch ein dreidimensionales Volumen. Sichtbare Strukturen können in benachbarten Schichten wandern oder verschwinden.",
+    specific: "Beim Labeln sollst du nicht ein Einzelbild glauben, sondern mehrere Schichten vergleichen. Plausible Tinte zeigt sich als kurze, zusammenhängende Spur über wenige benachbarte Tiefenschichten.",
+  },
+  deltaZ: {
+    title: "Differenzbild-Abstand",
+    general: "Ja: Das ist ein Differenzbild. Es vergleicht zwei Tiefenschichten und zeigt hell an, wo sich die Bildwerte zwischen ihnen stark ändern.",
+    specific: () => `Der Abstand ${els.diffDeltaSlider.value} bedeutet: Die Demo vergleicht eine Schicht davor mit einer Schicht danach. Kleine Abstände zeigen feine Änderungen, größere Abstände betonen gröbere Unterschiede.`,
+  },
+  brushSize: {
+    title: "Pinseldicke",
+    general: "Die Pinseldicke bestimmt, wie viele Pixel oder Voxel mit einem Strich markiert werden. Für dünne Strukturen ist ein zu breiter Pinsel ungenau.",
+    specific: () => `Hier beeinflusst die Pinseldicke direkt die IoU. Wenn der Pinsel breiter als die Schriftspur ist, markierst du zu viel Hintergrund und die Überlappung wird schlechter.`,
+  },
+  patchSize: {
+    title: "Patch-Größe",
+    general: "Ein Patch ist ein kleiner Ausschnitt aus dem Scan, den das Modell als Trainingsbeispiel sieht. Die Größe entscheidet, wie viel lokaler Kontext enthalten ist.",
+    specific: () => {
+      const example = examples[state.prepExample];
+      return `Dieses Beispiel enthält ${example.sizeLabel}e Schrift. Große Schrift braucht eher größere Patches, sehr kleine Schrift eher kleinere Patches mit genug Auflösung.`;
+    },
+  },
+  stride: {
+    title: "Stride / Überlappung",
+    general: "Stride ist der Abstand zwischen zwei benachbarten Patches. Kleiner Stride bedeutet stärkere Überlappung und mehr, aber ähnlichere Trainingsbeispiele.",
+    specific: () => {
+      const size = state.prep.size;
+      const stride = Number(els.strideSlider.value);
+      const reused = clamp(Math.round((1 - stride / size) * 100), 0, 95);
+      return `Aktuell wird das Fenster um ${stride} Voxel verschoben. Bei ${size} Voxel Patchgröße werden horizontal ungefähr ${reused}% des vorherigen Patches erneut genutzt.`;
+    },
+  },
+  backgroundShare: {
+    title: "Hintergrund-Anteil",
+    general: "Der Hintergrund-Anteil beschreibt, wie viele Trainingsbeispiele keine gesuchte Struktur enthalten. Solche Negativbeispiele sind wichtig, dürfen aber nicht dominieren.",
+    specific: () => `Hier sollen auch leere Papyrusbereiche ins Training, damit das Modell Fehlalarme vermeidet. Zu viel Hintergrund kann aber dazu führen, dass das Modell kaum noch Tinte erwartet.`,
+  },
+  augmentation: {
+    title: "Augmentation",
+    general: "Augmentation erzeugt künstliche Varianten von Trainingsdaten, zum Beispiel leicht verschobene, gedrehte oder verrauschte Patches. Das kann Generalisierung verbessern.",
+    specific: () => `In dieser Demo hilft Augmentation besonders bei sehr kleiner Schrift, weil aus wenigen sichtbaren Spuren mehr plausible Trainingsvarianten entstehen.`,
+  },
+  classWeight: {
+    title: "Klassengewichtung",
+    general: "Klassengewichtung verändert, wie stark Fehler für seltene Klassen zählen. Seltene Tinte kann dadurch wichtiger werden als häufigerer Hintergrund.",
+    specific: () => `Hier ist Tinte viel seltener als Papyrus. Eine höhere Gewichtung kann verhindern, dass das Modell einfach fast alles als Hintergrund behandelt.`,
+  },
+  epoch: {
+    title: "Trainingsrunde",
+    general: "Eine Trainingsrunde steht hier für fortschreitende Optimierung. Das Modell passt seine Parameter wiederholt an, um den Loss zu senken.",
+    specific: () => `Bei niedriger Trainingsrunde ist die Vorhersage unsicher. Mit mehr Runden werden Linien klarer, solange Learning Rate und Datenqualität passen.`,
+  },
+  trainData: {
+    title: "Trainingsdaten",
+    general: "Trainingsdaten sind die gelabelten Beispiele, mit denen ein Modell seine Parameter lernt. Mehr Daten helfen nur, wenn sie repräsentativ und nicht zu einseitig sind.",
+    specific: () => {
+      const count = state.prep.extractedPatches.length;
+      return count
+        ? `In dieser Simulation steht der Regler für den Anteil der zuvor erzeugten ${count} Trainingspatches, die ins Training gehen. Schlechte Sampling-Parameter erzeugen trotzdem Fehlalarme.`
+        : "In dieser Simulation steht der Regler für den Anteil der erzeugten Trainingspatches. Erzeuge in Station 3 erst Patches, dann ist dieser Bezug anschaulicher.";
+    },
+  },
+  modelSize: {
+    title: "Modellgröße",
+    general: "Modellgröße steht für Kapazität: Ein größeres Modell kann komplexere Muster lernen, kann aber auch leichter Rauschen auswendig lernen.",
+    specific: () => `Hier erkennt ein größeres Modell mehr Schriftstruktur. Bei wenig Testdaten oder schwacher Regularisierung steigt aber das Risiko von Overfitting.`,
+  },
+  testData: {
+    title: "Testdaten",
+    general: "Testdaten werden nicht zum Lernen benutzt. Sie verbessern das Modell nicht direkt, sondern prüfen, wie gut es auf zurückgehaltenen Beispielen funktioniert.",
+    specific: () => `In der Demo macht ein größerer Testdatenanteil die Kontrolle aussagekräftiger. Die Generalisierung selbst steigt dadurch nicht automatisch; sie hängt von Training, Modellgröße, Regularisierung und Datenqualität ab.`,
+  },
+  learningRate: {
+    title: "Learning Rate",
+    general: "Die Learning Rate bestimmt die Schrittweite bei der Optimierung. Zu kleine Schritte lernen langsam, zu große Schritte können am Minimum vorbeispringen.",
+    specific: () => `Hier ist ein mittlerer Wert meist stabil. Eine zu hohe Learning Rate erhöht Fehlalarme und macht die Loss-Kurve unruhiger.`,
+  },
+  regularization: {
+    title: "Regularisierung",
+    general: "Regularisierung bestraft zu komplizierte Lösungen. Sie soll verhindern, dass ein Modell Rauschen oder einzelne Trainingsbeispiele auswendig lernt.",
+    specific: () => `In dieser KI-Station senkt Regularisierung Overfitting. Zu viel davon kann aber echte Schriftlinien unterdrücken und die Erkennung verschlechtern.`,
+  },
+  threshold: {
+    title: "Schwelle",
+    general: "Eine Schwelle entscheidet, ab welcher Wahrscheinlichkeit ein Pixel als Tinte gilt. Sie macht aus einer kontinuierlichen Vorhersage eine Ja-Nein-Entscheidung.",
+    specific: () => `Eine niedrige Schwelle findet mehr mögliche Tinte, erzeugt aber mehr Fehlalarme. Eine hohe Schwelle ist vorsichtiger, übersieht aber schwache Linien.`,
+  },
+  detection: {
+    title: "Erkennung",
+    general: "Erkennung beschreibt, wie viel des gesuchten Signals vom Modell gefunden wird. Hohe Erkennung heißt nicht automatisch, dass keine Fehlalarme entstehen.",
+    specific: () => `Hier steigt Erkennung, wenn Training, Datenmenge und Modellkapazität gut zusammenspielen. Die Schwelle kann Erkennung bewusst erhöhen oder verringern.`,
+  },
+  falseAlarms: {
+    title: "Fehlalarme",
+    general: "Fehlalarme sind Stellen, die als Signal markiert werden, obwohl dort keines ist. In Segmentierung sind sie falsch positive Vorhersagen.",
+    specific: () => `In dieser Demo sehen Fehlalarme wie zusätzliche gelbe Flecken in der Vorhersage aus. Sie entstehen vor allem bei zu wenig Daten, zu niedriger Schwelle oder instabilem Training.`,
+  },
+  generalization: {
+    title: "Generalisierung",
+    general: "Generalisierung bedeutet, dass ein Modell nicht nur bekannte Trainingsbeispiele löst, sondern auch neue ähnliche Fälle.",
+    specific: () => `Hier verbessern passende Trainingsdaten, Regularisierung und stabile Optimierung die Generalisierung. Testdaten messen sie nur zuverlässiger; sie machen das Modell nicht von selbst besser.`,
+  },
+  learningBehavior: {
+    title: "Lernverhalten",
+    general: "Lernverhalten fasst typische Zustände des Trainings zusammen, etwa stabil, instabil, unterfit oder überfit.",
+    specific: () => `Die Anzeige bewertet deine Parameterkombination. Sie reagiert zum Beispiel auf zu wenig Daten, zu hohe Learning Rate oder zu starke Regularisierung.`,
   },
 };
 
@@ -325,6 +492,13 @@ function labelViewHelp() {
 }
 
 function renderScan() {
+  const maxZ = state.scanExample === realScrollSample.scanExample ? realScrollSample.depth - 1 : 65;
+  els.zSlider.max = String(maxZ);
+  if (Number(els.zSlider.value) > maxZ) els.zSlider.value = maxZ;
+  if (state.scanExample === realScrollSample.scanExample) {
+    renderRealScrollScan();
+    return;
+  }
   const example = examples[state.scanExample];
   const mask = fullGreekMasks[state.scanExample];
   const z = Number(els.zSlider.value);
@@ -381,6 +555,69 @@ function renderScan() {
   } else {
     els.scanStatus.textContent = isUpperMode() ? "Niedrige Signalqualität: prüfe z-Lage, Fensterbreite und den Bias durch zu starke oder zu schwache Glättung." : "Wenig Signal: vergleiche benachbarte Schichten und passe das Dichtefenster an.";
   }
+}
+
+function renderRealScrollScan() {
+  const z = clamp(Number(els.zSlider.value), 0, realScrollSample.depth - 1);
+  const windowWidth = Number(els.windowSlider.value) / 100;
+  const center = isUpperMode() ? Number(els.windowCenterSlider.value) / 100 : 0.55;
+  const smooth = Number(els.smoothSlider.value);
+  els.zValue.textContent = z;
+  els.windowValue.textContent = els.windowSlider.value;
+  els.windowCenterValue.textContent = center.toFixed(2);
+  els.noiseAmpValue.textContent = isUpperMode() ? (Number(els.noiseAmpSlider.value) / 100).toFixed(2) : "1.00";
+  els.smoothValue.textContent = smooth;
+
+  const ctx = els.scanCanvas.getContext("2d");
+  if (!realScrollImage.complete || !realScrollImage.naturalWidth) {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.fillStyle = "#fffdf8";
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.fillStyle = "#66645f";
+    ctx.font = "700 18px Inter, sans-serif";
+    ctx.fillText("Echter Ausschnitt wird geladen...", 32, 60);
+    els.scanScore.textContent = "Echter Scan";
+    els.scanStatus.textContent = "Der reale Vesuvius-Ausschnitt wird lokal geladen.";
+    return;
+  }
+
+  const tile = realScrollSample.tileSize;
+  const sx = (z % realScrollSample.cols) * tile;
+  const sy = Math.floor(z / realScrollSample.cols) * tile;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(realScrollImage, sx, sy, tile, tile, 0, 0, SIZE, SIZE);
+  const image = ctx.getImageData(0, 0, SIZE, SIZE);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    let v = data[i] / 255;
+    v = clamp((v - (center - windowWidth / 2)) / windowWidth, 0, 1);
+    const g = Math.round(v * 238 + 8);
+    data[i] = g;
+    data[i + 1] = Math.round(g * 0.96 + 5);
+    data[i + 2] = Math.round(g * 0.86 + 8);
+  }
+  ctx.putImageData(image, 0, 0);
+
+  if (smooth > 0) {
+    ctx.save();
+    ctx.globalAlpha = smooth * 0.035;
+    ctx.filter = `blur(${smooth}px)`;
+    ctx.drawImage(els.scanCanvas, 0, 0);
+    ctx.restore();
+    ctx.filter = "none";
+  }
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0, 109, 119, 0.48)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.strokeRect(74, 74, 372, 372);
+  ctx.restore();
+
+  els.scanScore.textContent = "Echter Scan";
+  els.scanStatus.textContent = isUpperMode()
+    ? `${realScrollSample.source}: reale Papyruslagen und Risse, keine hinterlegte Schriftlösung. Vergleiche die Schichtfolge über z.`
+    : "Echter Ausschnitt: Suche Papyruslagen, Risse und Strukturen, aber keine versteckte Lösung.";
 }
 
 function drawScanOverlay(ctx, z, example) {
@@ -553,42 +790,89 @@ function renderPrep() {
   }
   ctx.putImageData(image, 0, 0);
 
-  drawStrideGrid(ctx);
+  drawRedundancyDemo(ctx);
+  drawExtractionOverlay(ctx);
 
   renderPatchPreview();
   updatePatchMetrics();
+  renderExtractedPatchGallery();
 }
 
-function drawStrideGrid(ctx) {
-  const stride = Number(els.strideSlider.value);
-  const size = state.prep.size;
-  ctx.save();
-  ctx.strokeStyle = "rgba(0, 109, 119, 0.32)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= SIZE; x += stride) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, SIZE);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= SIZE; y += stride) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(SIZE, y);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = "rgba(56, 90, 159, 0.28)";
-  ctx.lineWidth = 2;
-  for (let y = 0; y <= SIZE - size; y += stride) {
-    for (let x = 0; x <= SIZE - size; x += stride) {
-      ctx.strokeRect(x, y, size, size);
+function patchGrid(size = state.prep.size, stride = Number(els.strideSlider.value)) {
+  const count = Math.max(1, Math.floor((SIZE - size) / stride) + 1);
+  const patches = [];
+  for (let y = 0; y < count; y += 1) {
+    for (let x = 0; x < count; x += 1) {
+      patches.push({ x: x * stride, y: y * stride, size });
     }
   }
+  return { count, total: count * count, patches };
+}
 
-  ctx.fillStyle = "rgba(0, 109, 119, 0.88)";
-  ctx.font = "700 15px Inter, sans-serif";
-  ctx.fillText(`Patch ${size} Voxel · Stride ${stride} Voxel`, 18, SIZE - 18);
+function drawRedundancyDemo(ctx) {
+  const stride = Number(els.strideSlider.value);
+  const size = state.prep.size;
+  const demoSize = 118;
+  const x = 18;
+  const y = SIZE - demoSize - 18;
+  const scale = demoSize / size;
+  const shift = Math.min(stride * scale, demoSize + 18);
+  const overlapWidth = clamp(demoSize - shift, 0, demoSize);
+  const overlapPct = clamp(Math.round((1 - stride / size) * 100), 0, 95);
+
+  ctx.save();
+  ctx.fillStyle = "rgba(255, 253, 248, 0.74)";
+  ctx.fillRect(x - 10, y - 18, 270, demoSize + 32);
+
+  ctx.fillStyle = "rgba(56, 90, 159, 0.18)";
+  ctx.fillRect(x, y, demoSize, demoSize);
+  ctx.strokeStyle = "rgba(56, 90, 159, 0.82)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, demoSize, demoSize);
+
+  ctx.fillStyle = "rgba(255, 216, 102, 0.52)";
+  ctx.fillRect(x + shift, y, overlapWidth, demoSize);
+  ctx.fillStyle = "rgba(215, 138, 0, 0.18)";
+  ctx.fillRect(x + shift, y, demoSize, demoSize);
+  ctx.strokeStyle = "rgba(215, 138, 0, 0.9)";
+  ctx.strokeRect(x + shift, y, demoSize, demoSize);
+
+  ctx.strokeStyle = "rgba(0, 109, 119, 0.95)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y - 12);
+  ctx.lineTo(x + shift - 8, y - 12);
+  ctx.stroke();
+  if (shift > 18) {
+    ctx.beginPath();
+    ctx.moveTo(x + shift - 10, y - 18);
+    ctx.lineTo(x + shift - 2, y - 12);
+    ctx.lineTo(x + shift - 10, y - 6);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(215, 138, 0, 0.85)";
+  ctx.fillRect(x + 126, y + demoSize + 7, Math.max(20, overlapPct), 8);
+  ctx.restore();
+}
+
+function drawExtractionOverlay(ctx) {
+  const { patches } = patchGrid();
+  ctx.save();
+  if (state.prep.extracting && state.prep.extractionIndex >= 0) {
+    const patch = patches[state.prep.extractionIndex % patches.length];
+    ctx.fillStyle = "rgba(255, 216, 102, 0.28)";
+    ctx.fillRect(patch.x, patch.y, patch.size, patch.size);
+    ctx.strokeStyle = "rgba(215, 138, 0, 0.98)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(patch.x, patch.y, patch.size, patch.size);
+  } else if (state.prep.checked && state.prep.extractedPatches.length) {
+    ctx.strokeStyle = "rgba(0, 109, 119, 0.18)";
+    ctx.lineWidth = 1;
+    patches.forEach((patch, index) => {
+      if (index % Math.max(1, Math.ceil(patches.length / 80)) === 0) ctx.strokeRect(patch.x, patch.y, patch.size, patch.size);
+    });
+  }
   ctx.restore();
 }
 
@@ -618,6 +902,96 @@ function renderPatchPreview() {
   ctx.putImageData(image, 0, 0);
 }
 
+function patchMetrics(patch) {
+  const example = examples[state.prepExample];
+  const mask = fullGreekMasks[state.prepExample];
+  let ink = 0;
+  let texture = 0;
+  let last = null;
+  const samples = 12;
+  for (let y = 0; y < samples; y += 1) {
+    for (let x = 0; x < samples; x += 1) {
+      const sx = patch.x + ((x + 0.5) / samples) * patch.size;
+      const sy = patch.y + ((y + 0.5) / samples) * patch.size;
+      const a = inkAlphaFromMask(mask, SIZE, sx, sy);
+      const v = ctValue(sx, sy, example.targetZ, mask, SIZE, 1, example);
+      if (a > 0.28) ink += 1;
+      if (last !== null) texture += Math.abs(v - last);
+      last = v;
+    }
+  }
+  const inkPct = Math.round((ink / (samples * samples)) * 100);
+  const structurePct = clamp(Math.round(texture * 180), 0, 100);
+  let quality = "mittel";
+  if (inkPct >= 3 && inkPct <= 28 && structurePct > 18) quality = "gut";
+  else if (inkPct === 0 || inkPct > 42 || structurePct < 8) quality = "schwach";
+  return { inkPct, structurePct, quality };
+}
+
+function drawExtractedPatch(canvas, patch) {
+  const example = examples[state.prepExample];
+  const mask = fullGreekMasks[state.prepExample];
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const image = ctx.createImageData(width, height);
+  const data = image.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sx = patch.x + (x / width) * patch.size;
+      const sy = patch.y + (y / height) * patch.size;
+      const v = ctValue(sx, sy, example.targetZ, mask, SIZE, 1, example);
+      const g = Math.round(clamp((v - 0.22) / 0.62, 0, 1) * 220 + 18);
+      const idx = (y * width + x) * 4;
+      data[idx] = g;
+      data[idx + 1] = Math.round(g * 0.95 + 6);
+      data[idx + 2] = Math.round(g * 0.82 + 10);
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+function renderExtractedPatchGallery() {
+  if (!state.prep.checked || !state.prep.extractedPatches.length) {
+    els.patchReview.hidden = true;
+    els.patchGallery.innerHTML = "";
+    return;
+  }
+  els.patchReview.hidden = false;
+  const patches = state.prep.extractedPatches;
+  const visible = patches.slice(0, 24);
+  els.patchGallery.innerHTML = "";
+  visible.forEach((patch, index) => {
+    const metrics = patchMetrics(patch);
+    const button = document.createElement("button");
+    button.className = `patch-card${state.prep.activeExtracted === index ? " active" : ""}`;
+    button.type = "button";
+    button.dataset.patchIndex = String(index);
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 72;
+    const label = document.createElement("span");
+    label.textContent = `Patch ${index + 1}`;
+    const meta = document.createElement("small");
+    meta.textContent = `${metrics.quality} · Tinte ${metrics.inkPct}%`;
+    button.append(canvas, label, meta);
+    els.patchGallery.append(button);
+    drawExtractedPatch(canvas, patch);
+  });
+  const selected = patches[state.prep.activeExtracted >= 0 ? state.prep.activeExtracted : 0];
+  if (selected) {
+    const metrics = patchMetrics(selected);
+    const active = state.prep.activeExtracted >= 0 ? state.prep.activeExtracted : 0;
+    drawExtractedPatch(els.selectedPatchCanvas, selected);
+    els.selectedPatchTitle.textContent = `Patch ${active + 1} von ${patches.length}`;
+    els.selectedPatchMetrics.textContent = `Bewertung: ${metrics.quality}. Tintenanteil ${metrics.inkPct}%, Struktur ${metrics.structurePct}%.`;
+    els.patchReviewNote.textContent = "Mit Zurück/Weiter kann jeder gespeicherte Patch geprüft werden.";
+    els.prevPatchBtn.disabled = active <= 0;
+    els.nextPatchBtn.disabled = active >= patches.length - 1;
+  }
+}
+
 function updatePatchMetrics() {
   const example = examples[state.prepExample];
   const size = state.prep.size;
@@ -625,8 +999,7 @@ function updatePatchMetrics() {
   const backgroundTarget = Number(els.backgroundSlider.value);
   const augmentation = Number(els.augmentationSlider.value);
   const classWeight = Number(els.classWeightSlider.value);
-  const gridCount = Math.max(1, Math.floor((SIZE - size) / stride) + 1);
-  const patchCount = gridCount * gridCount;
+  const { count: gridCount, total: patchCount } = patchGrid(size, stride);
   const overlap = clamp(Math.round((1 - stride / size) * 100), 0, 95);
   els.patchSizeValue.textContent = `${size} Voxel`;
   els.strideValue.textContent = `${stride} Voxel`;
@@ -640,7 +1013,10 @@ function updatePatchMetrics() {
 
   if (!state.prep.checked) {
     els.prepScore.textContent = "Noch nicht geprüft";
-    els.prepStatus.textContent = "Wähle Patch-Größe, Stride und Hintergrundanteil, dann prüfe die Entscheidung.";
+    els.prepStatus.textContent = isUpperMode()
+      ? `Bildgröße: ${SIZE} x ${SIZE} Voxel. Es passen ${gridCount} Patch-Positionen in eine Zeile und ${gridCount} in eine Spalte. Wie viele Patches sind das insgesamt?`
+      : "Wähle Patch-Größe, Stride und Hintergrundanteil, dann drücke Fertig.";
+    els.patchCountFeedback.textContent = "-";
   }
 }
 
@@ -656,6 +1032,7 @@ function inRange(value, range) {
 
 function evaluatePrepDecision() {
   state.prep.checked = true;
+  state.prep.extracting = false;
   const example = examples[state.prepExample];
   const size = state.prep.size;
   const stride = Number(els.strideSlider.value);
@@ -663,6 +1040,15 @@ function evaluatePrepDecision() {
   const augmentation = Number(els.augmentationSlider.value);
   const classWeight = Number(els.classWeightSlider.value);
   const overlap = clamp(Math.round((1 - stride / size) * 100), 0, 95);
+  const { count: gridCount, total: patchCount } = patchGrid(size, stride);
+  const guessed = Number(els.patchCountGuess.value);
+  if (els.patchCountGuess.value.trim() === "") {
+    els.patchCountFeedback.textContent = `${gridCount} x ${gridCount} = ${patchCount}`;
+  } else if (guessed === patchCount) {
+    els.patchCountFeedback.textContent = "richtig";
+  } else {
+    els.patchCountFeedback.textContent = `${gridCount} x ${gridCount} = ${patchCount}`;
+  }
   const target = prepTargets(example);
   const augmentationOk = !isUpperMode() || (example.sizeLabel === "sehr klein" ? augmentation >= 45 : augmentation >= 20 && augmentation <= 70);
   const classWeightOk = !isUpperMode() || (example.sizeLabel === "sehr klein" ? classWeight >= 3 : classWeight >= 1 && classWeight <= 4);
@@ -700,6 +1086,37 @@ function evaluatePrepDecision() {
   }
 }
 
+function startPatchExtraction() {
+  if (state.prepTimer) clearInterval(state.prepTimer);
+  const { patches } = patchGrid();
+  state.prep.extractedPatches = [];
+  state.prep.activeExtracted = -1;
+  state.prep.extracting = true;
+  state.prep.extractionIndex = 0;
+  els.evaluatePrepBtn.disabled = true;
+  els.prepScore.textContent = "Kernel läuft";
+  els.prepStatus.textContent = "Das Patch-Fenster wird mit dem gewählten Stride über das Bild geschoben und speichert Ausschnitte.";
+  renderPrep();
+
+  const step = Math.max(1, Math.ceil(patches.length / 80));
+  state.prepTimer = setInterval(() => {
+    state.prep.extractedPatches.push(...patches.slice(state.prep.extractionIndex, state.prep.extractionIndex + step));
+    state.prep.extractionIndex += step;
+    if (state.prep.extractionIndex >= patches.length) {
+      state.prep.extracting = false;
+      state.prep.extractionIndex = patches.length - 1;
+      state.prep.extractedPatches = patches;
+      state.prep.activeExtracted = 0;
+      els.evaluatePrepBtn.disabled = false;
+      clearInterval(state.prepTimer);
+      state.prepTimer = null;
+      els.prepStatus.textContent = `${patches.length} Patches gespeichert. Wähle unten einzelne Patches und bewerte Tintenanteil und Struktur.`;
+      els.prepScore.textContent = "Patches bereit";
+    }
+    renderPrep();
+  }, 55);
+}
+
 function modelStats(epoch = Number(els.epochSlider.value)) {
   const trainAmount = Number(els.trainDataSlider.value) / 100;
   const testAmount = Number(els.testDataSlider.value) / 100;
@@ -713,12 +1130,12 @@ function modelStats(epoch = Number(els.epochSlider.value)) {
   const lrTooLow = Math.max(0, 0.002 - lr);
   const dataQuality = Math.sqrt(trainAmount);
   const capacity = [0, 0.64, 0.88, 1.08][modelSize];
-  const overfit = Math.max(0, (modelSize - 1) * 0.16 + trainAmount * 0.28 - testAmount * 0.5 - regularization * 0.32 - 0.04);
+  const overfit = Math.max(0, (modelSize - 1) * 0.16 + trainAmount * 0.28 - regularization * 0.32 - 0.08);
   const underfit = Math.max(0, regularization - 0.72) * 0.35;
   const skill = clamp(progress * (0.08 + dataQuality * 0.52 + lrQuality * 0.28 + capacity * 0.24 - underfit - lrTooHigh * 28 - lrTooLow * 38), 0, 1);
-  const detection = clamp(Math.round(100 * (skill * 0.78 + trainAmount * 0.12 + capacity * 0.08 - Math.max(0, threshold - 0.5) * 0.28)), 0, 100);
-  const falseAlarms = clamp(Math.round(72 * (1 - skill) + overfit * 54 + lrTooHigh * 9000 + (1 - testAmount) * 10 - Math.max(0, threshold - 0.5) * 38 + Math.max(0, 0.5 - threshold) * 42), 0, 99);
-  const generalization = clamp(Math.round(100 * (skill * 0.52 + testAmount * 0.52 - overfit * 0.5 - underfit * 0.4 - lrTooHigh * 32 - lrTooLow * 24)), 0, 100);
+  const detection = clamp(Math.round(100 * (skill * (0.86 + capacity * 0.08) - Math.max(0, threshold - 0.5) * 0.28 + 0.02)), 0, 100);
+  const falseAlarms = clamp(Math.round(74 * (1 - skill) + overfit * 62 + lrTooHigh * 9000 - Math.max(0, threshold - 0.5) * 38 + Math.max(0, 0.5 - threshold) * 42), 0, 99);
+  const generalization = clamp(Math.round(100 * (skill * 0.72 + trainAmount * 0.06 + regularization * 0.08 - overfit * 0.58 - underfit * 0.42 - lrTooHigh * 32 - lrTooLow * 24)), 0, 100);
   let behavior = "stabil";
   if (trainAmount < 0.25) behavior = "zu wenig Daten";
   else if (overfit > 0.22) behavior = "überfit";
@@ -818,8 +1235,9 @@ function renderLoss() {
   });
   drawLossCurve(ctx, epoch, "#d78a00", (progress) => {
     const rate = clamp(1.35 + stats.trainAmount * 2.1 - Math.abs(stats.lr - 0.0035) * 36, 0.25, 4.2);
-    const overfitGap = Math.max(0, stats.trainAmount - stats.testAmount - 0.25) * progress * 0.34;
-    return 0.9 * Math.exp(-progress * rate) + 0.12 + (1 - stats.testAmount) * 0.12 + stats.lrTooHigh * 12 + overfitGap + stats.overfit * progress * 0.22 + stats.underfit * 0.18;
+    const overfitGap = stats.overfit * progress * 0.42;
+    const smallTestNoise = stats.testAmount < 0.12 ? 0.04 : 0;
+    return 0.9 * Math.exp(-progress * rate) + 0.16 + stats.lrTooHigh * 12 + overfitGap + stats.underfit * 0.18 + smallTestNoise;
   });
   ctx.fillStyle = "#202124";
   ctx.font = "700 14px Inter, sans-serif";
@@ -867,7 +1285,67 @@ function checkGuess() {
   }
 }
 
+function openInfo(termId) {
+  const info = infoTerms[termId];
+  if (!info) return;
+  els.infoTitle.textContent = info.title;
+  els.infoGeneral.textContent = info.general;
+  els.infoSpecific.textContent = typeof info.specific === "function" ? info.specific() : info.specific;
+  els.infoDialog.hidden = false;
+  els.infoClose.focus();
+}
+
+function closeInfo() {
+  els.infoDialog.hidden = true;
+}
+
+function resetPrepExtraction() {
+  if (state.prepTimer) {
+    clearInterval(state.prepTimer);
+    state.prepTimer = null;
+  }
+  state.prep.checked = false;
+  state.prep.extracting = false;
+  state.prep.extractionIndex = -1;
+  state.prep.extractedPatches = [];
+  state.prep.activeExtracted = -1;
+  els.evaluatePrepBtn.disabled = false;
+}
+
+function resetModelTraining() {
+  if (state.trainTimer) {
+    clearInterval(state.trainTimer);
+    state.trainTimer = null;
+  }
+  els.epochSlider.value = 0;
+  renderModel();
+  els.learnMetric.textContent = "neu starten";
+  els.trainBtn.textContent = "Training starten";
+}
+
 function wireEvents() {
+  document.addEventListener("click", (event) => {
+    const term = event.target instanceof Element ? event.target.closest(".info-term") : null;
+    if (!term) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openInfo(term.dataset.info);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const term = event.target instanceof Element ? event.target.closest(".info-term") : null;
+    if (term && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      openInfo(term.dataset.info);
+    }
+    if (event.key === "Escape" && !els.infoDialog.hidden) closeInfo();
+  });
+
+  els.infoClose.addEventListener("click", closeInfo);
+  els.infoDialog.addEventListener("click", (event) => {
+    if (event.target === els.infoDialog) closeInfo();
+  });
+
   els.modeSwitch.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-mode]");
     if (!button) return;
@@ -903,8 +1381,13 @@ function wireEvents() {
     state.scanExample = Number(button.dataset.example);
     [...els.scanExamples.children].forEach((child) => child.classList.toggle("active", child === button));
     const example = examples[state.scanExample];
-    els.zSlider.value = clamp(example.targetZ - 8, 0, 65);
-    els.scanHintText.textContent = isUpperMode() ? "Starte neben der erwarteten Oberfläche und beobachte die Signalstabilität über z." : "Starte etwas neben der Oberfläche und suche die Schichtfolge.";
+    if (state.scanExample === realScrollSample.scanExample) {
+      els.zSlider.value = 18;
+      els.scanHintText.textContent = "Echter Scan: Achte darauf, wie Papyruslagen und Risse beim Slicen durch z wandern.";
+    } else {
+      els.zSlider.value = clamp(example.targetZ - 8, 0, 65);
+      els.scanHintText.textContent = isUpperMode() ? "Starte neben der erwarteten Oberfläche und beobachte die Signalstabilität über z." : "Starte etwas neben der Oberfläche und suche die Schichtfolge.";
+    }
     renderScan();
   });
 
@@ -986,27 +1469,45 @@ function wireEvents() {
   });
 
   els.patchSizeSlider.addEventListener("input", () => {
-    state.prep.checked = false;
+    resetPrepExtraction();
     state.prep.size = Number(els.patchSizeSlider.value);
     renderPrep();
   });
   [els.strideSlider, els.backgroundSlider, els.augmentationSlider, els.classWeightSlider].forEach((input) =>
     input.addEventListener("input", () => {
-      state.prep.checked = false;
+      resetPrepExtraction();
       renderPrep();
     }),
   );
+  els.patchCountGuess.addEventListener("input", () => {
+    resetPrepExtraction();
+    renderPrep();
+  });
   els.prepExamples.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-example]");
     if (!button) return;
     state.prepExample = Number(button.dataset.example);
-    state.prep.checked = false;
+    resetPrepExtraction();
     [...els.prepExamples.children].forEach((child) => child.classList.toggle("active", child === button));
     renderPrep();
   });
   els.evaluatePrepBtn.addEventListener("click", () => {
     evaluatePrepDecision();
-    renderPrep();
+    startPatchExtraction();
+  });
+  els.patchGallery.addEventListener("click", (event) => {
+    const button = event.target.closest(".patch-card");
+    if (!button) return;
+    state.prep.activeExtracted = Number(button.dataset.patchIndex);
+    renderExtractedPatchGallery();
+  });
+  els.prevPatchBtn.addEventListener("click", () => {
+    state.prep.activeExtracted = Math.max(0, state.prep.activeExtracted - 1);
+    renderExtractedPatchGallery();
+  });
+  els.nextPatchBtn.addEventListener("click", () => {
+    state.prep.activeExtracted = Math.min(state.prep.extractedPatches.length - 1, state.prep.activeExtracted + 1);
+    renderExtractedPatchGallery();
   });
 
   els.modelExamples.addEventListener("click", (event) => {
@@ -1022,11 +1523,13 @@ function wireEvents() {
   els.guessInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") checkGuess();
   });
-  [els.epochSlider, els.trainDataSlider, els.modelSizeSlider, els.testDataSlider, els.lrSlider, els.regularizationSlider, els.thresholdSlider].forEach((input) => input.addEventListener("input", renderModel));
+  els.epochSlider.addEventListener("input", renderModel);
+  [els.trainDataSlider, els.modelSizeSlider, els.testDataSlider, els.lrSlider, els.regularizationSlider, els.thresholdSlider].forEach((input) => input.addEventListener("input", resetModelTraining));
   els.trainBtn.addEventListener("click", () => {
     if (state.trainTimer) clearInterval(state.trainTimer);
     els.epochSlider.value = 0;
     renderModel();
+    els.trainBtn.textContent = "Training läuft";
     state.trainTimer = setInterval(() => {
       const next = Number(els.epochSlider.value) + 1;
       els.epochSlider.value = next;
@@ -1034,6 +1537,7 @@ function wireEvents() {
       if (next >= 30) {
         clearInterval(state.trainTimer);
         state.trainTimer = null;
+        els.trainBtn.textContent = "Training starten";
       }
     }, 160);
   });
