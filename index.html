@@ -3,21 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vesuvius-Demo: Versteckte Schrift finden</title>
+    <title>Vesuvius-Demo: Wie neuronale Netze versteckte Schrift finden</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div>
         <p class="eyebrow">Demo</p>
-        <h1>Versteckte Schrift im Papyrus finden</h1>
+        <h1>Wie neuronale Netze versteckte Schrift im Papyrus finden</h1>
       </div>
       <div class="header-actions">
         <div class="mode-switch" aria-label="Schwierigkeitsmodus">
           <span>Modus</span>
           <div class="segmented" id="modeSwitch">
-            <button class="active" data-mode="youth">Jugend</button>
-            <button data-mode="upper">Vertieft</button>
+            <button data-mode="youth">Jugend</button>
+            <button class="active" data-mode="upper">Vertieft</button>
           </div>
         </div>
         <div class="timebox" aria-label="Zeitplan">
@@ -40,7 +40,7 @@
             <p class="step">Station 1 · Rekonstruktion</p>
             <h2 id="scanTitle">Schicht für Schicht durch den künstlichen Papyrus</h2>
           </div>
-          <p id="scanNote" class="station-note">Die Schrift ist Griechisch und liegt nur auf einer dünnen, gewellten Oberfläche.</p>
+          <p id="scanNote" class="station-note">Aufgabe: Finde Parameter, bei denen aus dem verrauschten 3D-Messfeld möglichst viel zusammenhängende Schrift sichtbar wird.</p>
         </div>
         <div id="scanLearning" class="learning-card"></div>
 
@@ -48,7 +48,7 @@
           <div class="viewer-block">
             <canvas id="scanCanvas" width="520" height="520" class="main-canvas" aria-label="Synthetische CT-Schicht"></canvas>
             <div class="status-row">
-              <span id="scanStatus">Suche die Schicht mit sichtbarer Tinte.</span>
+              <span id="scanStatus">Verändere die Parameter, bis möglichst viele zusammenhängende Schriftspuren sichtbar sind.</span>
               <strong id="scanScore">Treffer: 0%</strong>
             </div>
           </div>
@@ -90,7 +90,7 @@
             <button id="scanHint" class="secondary">Hinweis anzeigen</button>
             <div class="mini-readout">
               <span>Tipp</span>
-              <strong id="scanHintText">Achte auf Linien, die nur in wenigen Schichten auftauchen.</strong>
+              <strong id="scanHintText">Finde die Darstellung, in der du die meiste Schrift siehst.</strong>
             </div>
           </aside>
         </div>
@@ -114,14 +114,14 @@
               <button id="eraseBtn" class="tool">Radierer</button>
               <label class="brush-control">
                 <span class="info-term" data-info="brushSize" role="button" tabindex="0">Pinseldicke</span>
-                <input id="brushSizeSlider" type="range" min="1" max="8" value="4" />
-                <span id="brushSizeValue">4</span>
+                <input id="brushSizeSlider" type="range" min="4" max="18" value="9" />
+                <span id="brushSizeValue">9</span>
               </label>
               <button id="clearLabelBtn" class="secondary">Zurücksetzen</button>
               <button id="showTruthBtn" class="primary">Mit Wahrheit vergleichen</button>
             </div>
             <div class="status-row">
-              <span id="labelStatus">Markiere die Linien, die du für Tinte hältst.</span>
+              <span id="labelStatus">Suche die Schrift über mehrere Tiefenschichten und markiere alle sichtbaren Schriftspuren.</span>
               <strong id="labelScore">IoU: -</strong>
             </div>
           </div>
@@ -136,7 +136,7 @@
               <span>Ansicht</span>
               <div class="segmented" id="labelViewMode">
                 <button class="active" data-mode="slice">Schicht</button>
-                <button data-mode="diff">Änderung</button>
+                <button data-mode="diff">Differenzbild</button>
               </div>
             </div>
             <label class="advanced-only">
@@ -144,7 +144,7 @@
               <input id="diffDeltaSlider" type="range" min="1" max="5" value="1" />
               <span id="diffDeltaValue">1</span>
             </label>
-            <p id="labelDiffHelp" class="control-help">Schicht zeigt den aktuellen Schnitt. Änderung zeigt, was sich zwischen z-1 und z+1 verändert.</p>
+            <p id="labelDiffHelp" class="control-help">Schicht zeigt den aktuellen Schnitt. Differenzbild zeigt, was sich zwischen zwei benachbarten Tiefenschichten verändert.</p>
             <div class="choice-grid" id="patchChoices"></div>
             <div class="mini-readout">
               <span>aktiver Ausschnitt</span>
@@ -215,16 +215,6 @@
               <span class="info-term" data-info="backgroundShare" role="button" tabindex="0">Hintergrund-Anteil</span>
               <input id="backgroundSlider" type="range" min="5" max="80" value="35" />
               <span id="backgroundValue">35%</span>
-            </label>
-            <label class="advanced-only">
-              <span class="info-term" data-info="augmentation" role="button" tabindex="0">Augmentation</span>
-              <input id="augmentationSlider" type="range" min="0" max="100" value="35" />
-              <span id="augmentationValue">35%</span>
-            </label>
-            <label class="advanced-only">
-              <span class="info-term" data-info="classWeight" role="button" tabindex="0">Klassengewichtung</span>
-              <input id="classWeightSlider" type="range" min="1" max="5" value="2" />
-              <span id="classWeightValue">2x</span>
             </label>
             <label class="count-check advanced-only">
               Patchzahl berechnen
@@ -333,6 +323,16 @@
             <span class="info-term" data-info="regularization" role="button" tabindex="0">Regularisierung</span>
             <input id="regularizationSlider" type="range" min="0" max="100" value="35" />
             <span id="regularizationValue">0.35</span>
+          </label>
+          <label class="advanced-only">
+            <span class="info-term" data-info="augmentation" role="button" tabindex="0">Augmentation</span>
+            <input id="augmentationSlider" type="range" min="0" max="100" value="45" />
+            <span id="augmentationValue">45%</span>
+          </label>
+          <label class="advanced-only">
+            <span class="info-term" data-info="classWeight" role="button" tabindex="0">Klassengewichtung</span>
+            <input id="classWeightSlider" type="range" min="1" max="5" value="3" />
+            <span id="classWeightValue">3x</span>
           </label>
           <label class="advanced-only">
             <span class="info-term" data-info="threshold" role="button" tabindex="0">Schwelle</span>
