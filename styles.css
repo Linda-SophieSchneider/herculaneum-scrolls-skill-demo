@@ -738,27 +738,81 @@ footer {
 }
 
 @media (max-width: 900px) {
-  .topbar,
-  .station-head {
-    align-items: stretch;
-    flex-direction: column;
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 16px clamp(12px, 4vw, 28px) 12px;
   }
 
   .header-actions {
-    align-items: stretch;
+    align-items: end;
     flex-direction: column;
+    gap: 8px;
   }
 
   .timebox {
-    text-align: left;
+    min-width: 0;
+    padding: 7px 10px;
+    border-radius: 7px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .mode-switch > span {
+    font-size: 0.64rem;
+  }
+
+  .mode-switch .segmented button {
+    min-height: 30px;
+    padding: 4px 9px;
+  }
+
+  .tabs {
+    gap: 6px;
+    padding: 10px clamp(12px, 4vw, 28px);
+    scrollbar-width: thin;
+  }
+
+  .tab {
+    min-height: 38px;
+    padding: 7px 12px;
+    border-radius: 7px;
+  }
+
+  main {
+    padding: 16px clamp(12px, 4vw, 28px) 22px;
+  }
+
+  .station-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .station-note {
+    max-width: none;
+  }
+
+  .learning-card {
+    margin-bottom: 14px;
+    padding: 10px 12px;
   }
 
   .two-col,
-  .model-grid,
-  .model-metrics,
-  .example-strip,
   .patch-inspector {
     grid-template-columns: 1fr;
+  }
+
+  .model-grid,
+  .model-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .example-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .patch-inspector canvas {
@@ -768,10 +822,105 @@ footer {
 
   .controls {
     order: -1;
+    gap: 12px;
+    padding: 14px;
   }
 
   .main-canvas {
     max-height: none;
+  }
+
+  .bottom-controls label {
+    flex-basis: calc(50% - 8px);
+  }
+}
+
+@media (max-width: 700px) {
+  body {
+    font-size: 15px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .header-actions {
+    align-items: stretch;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .mode-switch {
+    justify-content: start;
+  }
+
+  .mode-switch > span {
+    text-align: left;
+  }
+
+  .timebox {
+    align-self: end;
+  }
+
+  h1 {
+    font-size: clamp(1.55rem, 7vw, 2rem);
+    line-height: 1.08;
+  }
+
+  h2 {
+    font-size: clamp(1.25rem, 5.6vw, 1.7rem);
+  }
+
+  .eyebrow,
+  .step {
+    font-size: 0.72rem;
+  }
+
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .tab {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 0.92rem;
+  }
+
+  .controls label,
+  .bottom-controls label {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .segmented button,
+  .example-strip button {
+    min-height: 36px;
+  }
+
+  .model-grid,
+  .model-metrics,
+  .example-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .guess-box {
+    min-height: 0;
+  }
+
+  .paint-actions,
+  .bottom-controls {
+    padding: 10px;
+  }
+
+  .paint-actions button,
+  .bottom-controls button {
+    flex: 1 1 140px;
+  }
+
+  .brush-control {
+    flex-basis: 100%;
   }
 }
 
@@ -785,8 +934,38 @@ footer {
     grid-template-columns: 1fr;
   }
 
-  .paint-actions button,
-  .bottom-controls button {
-    flex: 1 1 140px;
+  .patch-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  }
+
+  .patch-card canvas {
+    height: 58px;
+  }
+}
+
+@media (max-width: 430px) {
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mode-switch .segmented {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .timebox {
+    width: 100%;
+    text-align: left;
+  }
+
+  .tab {
+    font-size: 0.86rem;
+  }
+
+  .status-row,
+  .control-help,
+  .station-note,
+  .learning-card {
+    font-size: 0.94rem;
   }
 }
