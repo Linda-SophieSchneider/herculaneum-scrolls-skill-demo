@@ -446,16 +446,6 @@ function canvasPoint(event, canvas) {
 
 
 
-function touchPoints(event, canvas) {
-  return [...event.touches].map((touch) => {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((touch.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((touch.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  });
-}
-
 function clampLabelView() {
   const view = state.labelView;
   view.scale = clamp(view.scale, 1, 4);
@@ -1505,57 +1495,65 @@ function wireEvents() {
   });
 
   let painting = false;
-  const startPaint = (event) => {
-    event.preventDefault();
-    painting = true;
-    paintAt(canvasPoint(event, els.labelCanvas));
+  let paintPointerId = null;
+  const activePointers = new Map();
+  const pointerCanvasPoint = (event) => canvasPoint(event, els.labelCanvas);
+  const pinchFromPointers = () => {
+    const points = [...activePointers.values()];
+    if (points.length < 2) return null;
+    return {
+      distance: Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y),
+      center: { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 },
+    };
   };
-  const movePaint = (event) => {
-    if (!painting) return;
-    event.preventDefault();
-    paintAt(canvasPoint(event, els.labelCanvas));
+  const stopPaint = (event = null) => {
+    if (!event || event.pointerId === paintPointerId) {
+      painting = false;
+      paintPointerId = null;
+    }
+    if (event) activePointers.delete(event.pointerId);
+    if (activePointers.size < 2) state.labelView.pinch = null;
   };
-  const stopPaint = () => {
-    painting = false;
-    state.labelView.pinch = null;
-  };
-  els.labelCanvas.addEventListener("mousedown", startPaint);
-  els.labelCanvas.addEventListener("mousemove", movePaint);
-  window.addEventListener("mouseup", stopPaint);
   els.labelCanvas.addEventListener("wheel", (event) => {
     event.preventDefault();
     zoomLabelAt(canvasPoint(event, els.labelCanvas), event.deltaY < 0 ? 1.15 : 0.87);
     renderLabel();
   }, { passive: false });
-  els.labelCanvas.addEventListener("touchstart", (event) => {
+  els.labelCanvas.addEventListener("pointerdown", (event) => {
     event.preventDefault();
-    if (event.touches.length === 2) {
+    els.labelCanvas.setPointerCapture?.(event.pointerId);
+    activePointers.set(event.pointerId, pointerCanvasPoint(event));
+    if (activePointers.size >= 2) {
       painting = false;
-      const points = touchPoints(event, els.labelCanvas);
-      state.labelView.pinch = { distance: Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y), center: { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 } };
+      paintPointerId = null;
+      state.labelView.pinch = pinchFromPointers();
       return;
     }
     painting = true;
-    paintAt(canvasPoint(event, els.labelCanvas));
+    paintPointerId = event.pointerId;
+    paintAt(pointerCanvasPoint(event));
   }, { passive: false });
-  els.labelCanvas.addEventListener("touchmove", (event) => {
+  els.labelCanvas.addEventListener("pointermove", (event) => {
     event.preventDefault();
-    if (event.touches.length === 2) {
-      const points = touchPoints(event, els.labelCanvas);
-      const distance = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
-      const center = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
-      const pinch = state.labelView.pinch ?? { distance, center };
-      zoomLabelAt(center, distance / Math.max(1, pinch.distance));
-      state.labelView.x += center.x - pinch.center.x;
-      state.labelView.y += center.y - pinch.center.y;
+    if (activePointers.has(event.pointerId)) activePointers.set(event.pointerId, pointerCanvasPoint(event));
+    if (activePointers.size >= 2) {
+      const nextPinch = pinchFromPointers();
+      const pinch = state.labelView.pinch ?? nextPinch;
+      zoomLabelAt(nextPinch.center, nextPinch.distance / Math.max(1, pinch.distance));
+      state.labelView.x += nextPinch.center.x - pinch.center.x;
+      state.labelView.y += nextPinch.center.y - pinch.center.y;
       clampLabelView();
-      state.labelView.pinch = { distance, center };
+      state.labelView.pinch = nextPinch;
       renderLabel();
       return;
     }
-    if (painting) paintAt(canvasPoint(event, els.labelCanvas));
+    if (painting && event.pointerId === paintPointerId) paintAt(pointerCanvasPoint(event));
   }, { passive: false });
-  window.addEventListener("touchend", stopPaint);
+  els.labelCanvas.addEventListener("pointerup", stopPaint);
+  els.labelCanvas.addEventListener("pointercancel", stopPaint);
+  els.labelCanvas.addEventListener("lostpointercapture", stopPaint);
+  window.addEventListener("pointerup", stopPaint);
+  window.addEventListener("pointercancel", stopPaint);
 
   els.brushBtn.addEventListener("click", () => {
     state.paintMode = "brush";
